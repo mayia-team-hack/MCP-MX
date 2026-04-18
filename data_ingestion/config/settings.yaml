@@ -8,6 +8,21 @@ ckan:
   rows_per_request: 100
   max_rows_per_response: 1000
 
+# SCOPE REDUCIDO: solo 9 categorías operativas (384 datasets)
+# Excluidas: demografía, estadísticas, covid, infraestructura, admin/finanzas,
+# educación, cultura, rendición de cuentas, conectividad, mujeres, división geográfica
+scope:
+  categories_whitelist:
+    - movilidad
+    - medio-ambiente-y-cambio-climatico
+    - desarrollo-urbano-vivienda-y-territorio
+    - inclusion-y-bienestar-social
+    - justicia-y-seguridad
+    - atencion-ciudadana
+    - salud
+    - turismo
+    - participacion-ciudadana
+
 throttling:
   delay_seconds: 1.5
   max_concurrent_downloads: 2
