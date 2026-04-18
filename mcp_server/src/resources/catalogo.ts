@@ -25,14 +25,14 @@ function buildCatalog(): Record<string, unknown> {
   const entries: Record<string, unknown> = {};
 
   for (const dataset of datasets) {
-    const meta = schemaCache.get(dataset.dataset_id);
-    entries[dataset.dataset_id] = {
+    const meta = schemaCache.get(dataset.name);
+    entries[dataset.name] = {
       title: dataset.title,
       organization: dataset.organization ?? null,
-      categories: dataset.categories,
-      tags: dataset.tags,
-      last_updated: dataset.last_updated ?? null,
-      row_count: meta?.row_count ?? null,
+      groups: dataset.groups,
+      tags: dataset.tags.map((t) => t.name),
+      metadata_modified: dataset.metadata_modified ?? null,
+      num_rows: dataset.num_rows ?? null,
       columns: meta?.columns ?? [],
     };
   }

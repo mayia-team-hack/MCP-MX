@@ -7,23 +7,23 @@ export function register(server: McpServer): void {
   server.tool(
     'consultar_datos_sql',
     [
-      'Ejecuta una query SQL SELECT contra un dataset. Usa dataset_id como nombre de tabla.',
+      'Ejecuta una query SQL SELECT contra un dataset. Usa el name (slug) como nombre de tabla.',
       'LIMIT 100 se aplica automáticamente si no está en la query.',
-      'Ejemplo: SELECT col1, col2 FROM delitos_2024 WHERE col1 = \'valor\'',
+      'Ejemplo: SELECT col1, col2 FROM "carpetas-de-investigacion-cdmx-2024" WHERE col1 = \'valor\'',
     ].join(' '),
     {
-      dataset_id: z.string(),
+      name: z.string(),
       query_sql: z.string(),
     },
-    async ({ dataset_id, query_sql }) => {
+    async ({ name, query_sql }) => {
       try {
-        const pathOrErr = loader.getPath(dataset_id);
+        const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {
           return { content: [{ type: 'text', text: JSON.stringify(pathOrErr) }], isError: true };
         }
 
-        // Pass dataset_id as viewName so users write: SELECT … FROM delitos_2024
-        const result = await engine.execute(pathOrErr, query_sql, dataset_id);
+        // Pass name as viewName — engine creates a quoted DuckDB view for the slug
+        const result = await engine.execute(pathOrErr, query_sql, name);
 
         const isErr = !Array.isArray(result) && result.error;
         return {

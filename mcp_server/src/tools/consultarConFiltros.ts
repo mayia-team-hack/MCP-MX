@@ -42,20 +42,20 @@ export function register(server: McpServer): void {
     'consultar_con_filtros',
     'Consulta un dataset aplicando filtros y seleccionando columnas específicas. Más seguro que SQL crudo.',
     {
-      dataset_id: z.string(),
+      name: z.string(),
       filtros: z.array(FiltroSchema),
       columnas_salida: z.array(z.string()).optional(),
       limit: z.number().int().positive().optional().default(100),
     },
-    async ({ dataset_id, filtros, columnas_salida, limit }) => {
+    async ({ name, filtros, columnas_salida, limit }) => {
       try {
-        const pathOrErr = loader.getPath(dataset_id);
+        const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {
           return { content: [{ type: 'text', text: JSON.stringify(pathOrErr) }], isError: true };
         }
 
         // Validate column names against schema to block injection via column names
-        const meta = schemaCache.get(dataset_id);
+        const meta = schemaCache.get(name);
         if (meta) {
           const valid = new Set(meta.columns.map((c) => c.column_name));
           for (const f of filtros) {

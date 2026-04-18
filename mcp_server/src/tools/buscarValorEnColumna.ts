@@ -9,20 +9,20 @@ export function register(server: McpServer): void {
     'buscar_valor_en_columna',
     'Busca filas donde una columna contiene un texto (búsqueda parcial, case-insensitive).',
     {
-      dataset_id: z.string(),
+      name: z.string(),
       columna: z.string(),
       texto: z.string(),
       limit: z.number().int().positive().optional().default(50),
     },
-    async ({ dataset_id, columna, texto, limit }) => {
+    async ({ name, columna, texto, limit }) => {
       try {
-        const pathOrErr = loader.getPath(dataset_id);
+        const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {
           return { content: [{ type: 'text', text: JSON.stringify(pathOrErr) }], isError: true };
         }
 
         // Validate column exists
-        const meta = schemaCache.get(dataset_id);
+        const meta = schemaCache.get(name);
         if (meta) {
           const valid = new Set(meta.columns.map((c) => c.column_name));
           if (!valid.has(columna)) {

@@ -48,21 +48,21 @@ export function register(server: McpServer): void {
     'agregar_datos',
     'Agrupa y agrega datos de un dataset (GROUP BY). Soporta COUNT, SUM, AVG, MIN, MAX.',
     {
-      dataset_id: z.string(),
+      name: z.string(),
       agrupar_por: z.array(z.string()),
       metricas: z.array(MetricaSchema),
       filtros: z.array(FiltroSchema).optional().default([]),
       limit: z.number().int().positive().optional().default(100),
     },
-    async ({ dataset_id, agrupar_por, metricas, filtros, limit }) => {
+    async ({ name, agrupar_por, metricas, filtros, limit }) => {
       try {
-        const pathOrErr = loader.getPath(dataset_id);
+        const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {
           return { content: [{ type: 'text', text: JSON.stringify(pathOrErr) }], isError: true };
         }
 
         // Validate all columns against schema
-        const meta = schemaCache.get(dataset_id);
+        const meta = schemaCache.get(name);
         if (meta) {
           const valid = new Set(meta.columns.map((c) => c.column_name));
           for (const col of agrupar_por) {

@@ -40,33 +40,20 @@ function openDb(filePath: string): Promise<duckdb.Database> {
   });
 }
 
-async function introspect(filePath: string): Promise<DatasetMeta> {
+async function introspect(filePath: string): Promise<ColumnInfo[]> {
   const db = await openDb(':memory:');
   const conn = db.connect();
 
   try {
     const escaped = filePath.replace(/'/g, "''");
-
-    const describeRows = await queryAll(
-      conn,
-      `DESCRIBE SELECT * FROM '${escaped}'`,
-    );
-
-    const columns: ColumnInfo[] = describeRows.map((row) => ({
+    const describeRows = await queryAll(conn, `DESCRIBE SELECT * FROM '${escaped}'`);
+    return describeRows.map((row) => ({
       column_name: String(row['column_name']),
       data_type: String(row['column_type']),
     }));
-
-    const countRows = await queryAll(
-      conn,
-      `SELECT COUNT(*) AS cnt FROM '${escaped}'`,
-    );
-    const row_count = Number((countRows[0] as { cnt: unknown })['cnt'] ?? 0);
-
-    return { columns, row_count };
   } finally {
     conn.close();
-    await new Promise<void>((resolve) => db.close(resolve));
+    await new Promise<void>((resolve) => db.close(() => resolve()));
   }
 }
 
@@ -80,31 +67,39 @@ export async function initialize(datasets: DatasetEntry[]): Promise<void> {
 
   for (const dataset of datasets) {
     try {
-      const meta = await introspect(dataset.resolvedPath);
-      cache.set(dataset.dataset_id, meta);
+      const columns = await introspect(dataset.resolvedPath);
+      const meta: DatasetMeta = {
+        columns,
+        row_count: dataset.num_rows ?? 0,
+      };
+      cache.set(dataset.name, meta);
       console.log(
-        `[schemaCache] Loaded "${dataset.dataset_id}": ` +
-          `${meta.columns.length} columns, ${meta.row_count} rows`,
+        `[schemaCache] Loaded "${dataset.name}": ` +
+          `${columns.length} columns, ${meta.row_count} rows`,
       );
     } catch (err) {
       console.error(
-        `[schemaCache] Failed to introspect "${dataset.dataset_id}": ` +
+        `[schemaCache] Failed to introspect "${dataset.name}": ` +
           `${(err as Error).message}`,
       );
     }
   }
 }
 
-export function get(datasetId: string): DatasetMeta | undefined {
-  return cache.get(datasetId);
+export function get(name: string): DatasetMeta | undefined {
+  return cache.get(name);
 }
 
-export function getColumns(datasetId: string): ColumnInfo[] | undefined {
-  return cache.get(datasetId)?.columns;
+export function getColumns(name: string): ColumnInfo[] | undefined {
+  return cache.get(name)?.columns;
 }
 
-export function getRowCount(datasetId: string): number | undefined {
-  return cache.get(datasetId)?.row_count;
+export function getRowCount(name: string): number | undefined {
+  return cache.get(name)?.row_count;
+}
+
+export function getColumnCount(name: string): number | undefined {
+  return cache.get(name)?.columns.length;
 }
 
 export function all(): Map<string, DatasetMeta> {

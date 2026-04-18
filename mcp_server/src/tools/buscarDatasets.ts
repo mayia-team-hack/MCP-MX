@@ -2,34 +2,40 @@ import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as loader from '../core/loader';
 
+function stripAccents(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function tokenize(text: string): string[] {
-  return text
+  return stripAccents(text)
     .toLowerCase()
-    .split(/[\s,;.]+/)
+    .split(/[\s,;.\-_]+/)
     .filter(Boolean);
 }
 
 function scoreDataset(
   tokens: string[],
   title: string,
-  tags: string[],
-  categories: string[],
+  tags: Array<{ name: string }>,
+  groups: Array<{ name: string; display_name: string }>,
 ): number {
-  const haystack = [title, ...tags, ...categories].join(' ').toLowerCase();
+  const tagNames = tags.map((t) => t.name);
+  const groupNames = groups.flatMap((g) => [g.name, g.display_name]);
+  const haystack = stripAccents([title, ...tagNames, ...groupNames].join(' ')).toLowerCase();
   let score = 0;
   for (const token of tokens) {
     if (haystack.includes(token)) score += 1;
   }
   // bonus for phrase match in title
   const phrase = tokens.join(' ');
-  if (title.toLowerCase().includes(phrase)) score += 2;
+  if (stripAccents(title).toLowerCase().includes(phrase)) score += 2;
   return score;
 }
 
 export function register(server: McpServer): void {
   server.tool(
     'buscar_datasets_por_texto',
-    'Busca datasets por texto libre en título, tags y categorías. Útil cuando no conoces el dataset_id.',
+    'Busca datasets por texto libre en título, tags y grupos. Útil cuando no conoces el name del dataset.',
     {
       texto: z.string(),
       top_k: z.number().int().positive().optional().default(5),
@@ -45,10 +51,10 @@ export function register(server: McpServer): void {
         const tokens = tokenize(texto);
         const scored = datasets
           .map((d) => ({
-            dataset_id: d.dataset_id,
+            name: d.name,
             title: d.title,
-            categories: d.categories,
-            score: scoreDataset(tokens, d.title, d.tags, d.categories),
+            groups: d.groups,
+            score: scoreDataset(tokens, d.title, d.tags, d.groups),
           }))
           .filter((d) => d.score > 0)
           .sort((a, b) => b.score - a.score)

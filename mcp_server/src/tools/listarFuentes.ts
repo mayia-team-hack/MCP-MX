@@ -5,24 +5,24 @@ import * as loader from '../core/loader';
 export function register(server: McpServer): void {
   server.tool(
     'listar_fuentes_de_datos',
-    'Lista todos los datasets disponibles en el catálogo. Filtra por categoría si se indica.',
-    { categoria: z.string().optional() },
-    async ({ categoria }) => {
+    'Lista todos los datasets disponibles en el catálogo. Filtra por grupo temático si se indica.',
+    { grupo: z.string().optional() },
+    async ({ grupo }) => {
       try {
         let datasets = loader.getAll();
 
-        if (categoria) {
-          const cat = categoria.toLowerCase();
+        if (grupo) {
+          const g = grupo.toLowerCase();
           datasets = datasets.filter((d) =>
-            d.categories.some((c) => c.toLowerCase().includes(cat)),
+            d.groups.some((gr) => gr.name.toLowerCase().includes(g)),
           );
         }
 
-        const result = datasets.map(({ dataset_id, title, organization, categories, tags }) => ({
-          dataset_id,
+        const result = datasets.map(({ name, title, organization, groups, tags }) => ({
+          name,
           title,
-          organization: organization ?? null,
-          categories,
+          organization: organization ? { name: organization.name, title: organization.title } : null,
+          groups,
           tags,
         }));
 

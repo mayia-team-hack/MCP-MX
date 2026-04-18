@@ -32,9 +32,9 @@ function queryAll(
 // ── Public API ───────────────────────────────────────────────────────────────
 
 function sanitizeIdentifier(name: string): string {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
-    throw new Error(`Invalid identifier: "${name}"`);
-  }
+  if (name.length === 0) throw new Error('Identifier cannot be empty');
+  // Double-quoted SQL identifiers support any char except the double-quote itself
+  if (name.includes('"')) throw new Error(`Identifier contains illegal character '"': "${name}"`);
   return name;
 }
 
@@ -98,6 +98,6 @@ export async function execute(
     );
   } finally {
     if (conn) conn.close();
-    if (db) await new Promise<void>((resolve) => (db as duckdb.Database).close(resolve));
+    if (db) await new Promise<void>((resolve) => (db as duckdb.Database).close(() => resolve()));
   }
 }

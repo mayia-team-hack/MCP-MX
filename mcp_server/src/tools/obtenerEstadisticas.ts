@@ -16,22 +16,22 @@ export function register(server: McpServer): void {
     'obtener_estadisticas_columna',
     'Calcula estadísticas de una columna: min/max/avg/stddev para numéricas, top valores para categóricas.',
     {
-      dataset_id: z.string(),
+      name: z.string(),
       columna: z.string(),
     },
-    async ({ dataset_id, columna }) => {
+    async ({ name, columna }) => {
       try {
-        const pathOrErr = loader.getPath(dataset_id);
+        const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {
           return { content: [{ type: 'text', text: JSON.stringify(pathOrErr) }], isError: true };
         }
 
-        const meta = schemaCache.get(dataset_id);
+        const meta = schemaCache.get(name);
         if (!meta) {
           const payload = loader.makeError(
             'DATASET_NOT_FOUND',
-            `No se encontró el esquema del dataset "${dataset_id}".`,
-            'Usa listar_fuentes_de_datos para ver los dataset_id disponibles.',
+            `No se encontró el esquema del dataset "${name}".`,
+            'Usa listar_fuentes_de_datos para ver los nombres disponibles.',
           );
           return { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true };
         }

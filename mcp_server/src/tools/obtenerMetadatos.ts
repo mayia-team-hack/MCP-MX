@@ -7,33 +7,32 @@ export function register(server: McpServer): void {
   server.tool(
     'obtener_metadatos_dataset',
     'Devuelve metadatos completos de un dataset: origen, organización, fechas, tamaño (filas/columnas).',
-    { dataset_id: z.string() },
-    async ({ dataset_id }) => {
+    { name: z.string() },
+    async ({ name }) => {
       try {
-        const all = loader.getAll();
-        const entry = all.find((d) => d.dataset_id === dataset_id);
+        const entry = loader.getByName(name);
 
         if (!entry) {
           const payload = loader.makeError(
             'DATASET_NOT_FOUND',
-            `Dataset no encontrado: "${dataset_id}".`,
-            'Usa listar_fuentes_de_datos para ver los dataset_id disponibles.',
+            `Dataset no encontrado: "${name}".`,
+            'Usa listar_fuentes_de_datos para ver los nombres disponibles.',
           );
           return { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true };
         }
 
-        const meta = schemaCache.get(dataset_id);
-
         const result = {
-          dataset_id: entry.dataset_id,
+          name: entry.name,
           title: entry.title,
+          description: entry.description ?? null,
           organization: entry.organization ?? null,
-          categories: entry.categories,
+          groups: entry.groups,
           tags: entry.tags,
-          last_updated: entry.last_updated ?? null,
-          file_path: entry.file_path,
-          row_count: meta?.row_count ?? null,
-          column_count: meta?.columns.length ?? null,
+          source_url: entry.source_url ?? null,
+          metadata_created: entry.metadata_created ?? null,
+          metadata_modified: entry.metadata_modified ?? null,
+          num_rows: entry.num_rows ?? null,
+          column_count: schemaCache.getColumnCount(name) ?? null,
         };
 
         return { content: [{ type: 'text', text: JSON.stringify(result) }] };
@@ -41,7 +40,7 @@ export function register(server: McpServer): void {
         const payload = loader.makeError(
           'DATASET_NOT_FOUND',
           `Error obteniendo metadatos: ${(err as Error).message}`,
-          'Verifica el dataset_id.',
+          'Verifica el name del dataset.',
         );
         return { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true };
       }

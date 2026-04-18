@@ -26,23 +26,46 @@ export function makeError(
   return { error: true, code, message, suggestion };
 }
 
-// ── Schema ───────────────────────────────────────────────────────────────────
+// ── Schema (new data contract) ────────────────────────────────────────────────
 
-const DatasetSchema = z.object({
-  dataset_id: z.string(),
-  file_path: z.string(),
-  title: z.string(),
-  organization: z.string().optional(),
-  categories: z.array(z.string()).optional().default([]),
-  tags: z.array(z.string()).optional().default([]),
-  last_updated: z.string().optional(),
+const ResourceSchema = z.object({
+  path: z.string(),
+  format: z.string(),
 });
 
-// Accept both the populated format (datasets array) and the current empty
-// format produced by the ingestion pipeline scaffold.
-const IndexSchema = z.object({
-  datasets: z.array(DatasetSchema).optional().default([]),
-}).passthrough();
+const GroupSchema = z.object({
+  name: z.string(),
+  display_name: z.string(),
+});
+
+const TagSchema = z.object({
+  name: z.string(),
+});
+
+const OrganizationSchema = z.object({
+  name: z.string(),
+  title: z.string(),
+});
+
+const DatasetSchema = z.object({
+  source: z.string().optional(),
+  id: z.string().optional(),
+  name: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  metadata_created: z.string().optional(),
+  metadata_modified: z.string().optional(),
+  groups: z.array(GroupSchema).optional().default([]),
+  organization: OrganizationSchema.optional(),
+  tags: z.array(TagSchema).optional().default([]),
+  resources: z.array(ResourceSchema).optional().default([]),
+  source_url: z.string().optional(),
+  num_rows: z.number().optional(),
+});
+
+const IndexSchema = z
+  .object({ datasets: z.array(DatasetSchema).optional().default([]) })
+  .passthrough();
 
 export type Dataset = z.infer<typeof DatasetSchema>;
 export type DatasetEntry = Dataset & { resolvedPath: string };
@@ -90,15 +113,29 @@ export function initialize(sharedDataPath: string): void {
   registry = new Map();
 
   for (const dataset of result.data.datasets) {
-    const resolvedPath = path.resolve(sharedDataPath, dataset.file_path);
+    type Resource = { path: string; format: string };
+    const parquetResource: Resource | undefined =
+      dataset.resources.find((r: Resource) => r.format.toLowerCase() === 'parquet') ??
+      dataset.resources[0];
+
+    if (!parquetResource) {
+      throw makeError(
+        'FILE_NOT_FOUND',
+        `No parquet resource defined for dataset "${dataset.name}".`,
+        `Add an entry with format "parquet" to the resources array in index.json for "${dataset.name}"`,
+      );
+    }
+
+    const resolvedPath = path.resolve(sharedDataPath, parquetResource.path);
     if (!fs.existsSync(resolvedPath)) {
       throw makeError(
         'FILE_NOT_FOUND',
-        `Parquet file not found for dataset "${dataset.dataset_id}": ${resolvedPath}`,
-        `Run the ingestion pipeline or verify file_path in index.json for "${dataset.dataset_id}"`,
+        `Parquet file not found for dataset "${dataset.name}": ${resolvedPath}`,
+        `Run the ingestion pipeline or verify resources[0].path in index.json for "${dataset.name}"`,
       );
     }
-    registry.set(dataset.dataset_id, { ...dataset, resolvedPath });
+
+    registry.set(dataset.name, { ...dataset, resolvedPath });
   }
 }
 
@@ -106,14 +143,23 @@ export function getAll(): DatasetEntry[] {
   return Array.from(registry.values());
 }
 
-export function getPath(datasetId: string): string | McpError {
-  const entry = registry.get(datasetId);
+/** Returns the resolved absolute parquet path for a dataset name (slug). */
+export function getParquetPath(name: string): string | McpError {
+  const entry = registry.get(name);
   if (!entry) {
     return makeError(
       'DATASET_NOT_FOUND',
-      `Dataset not found: "${datasetId}"`,
-      'Use the list_datasets tool to see available dataset IDs',
+      `Dataset not found: "${name}"`,
+      'Use the listar_fuentes_de_datos tool to see available dataset names',
     );
   }
   return entry.resolvedPath;
+}
+
+/** Backward-compat alias so existing tool files continue to compile. */
+export const getPath = getParquetPath;
+
+/** Returns the full entry for a dataset name, or undefined if not registered. */
+export function getByName(name: string): DatasetEntry | undefined {
+  return registry.get(name);
 }

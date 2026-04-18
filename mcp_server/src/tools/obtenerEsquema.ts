@@ -7,16 +7,16 @@ export function register(server: McpServer): void {
   server.tool(
     'obtener_esquema_dataset',
     'Devuelve los nombres y tipos de columnas de un dataset. Llama a esta tool antes de escribir cualquier query.',
-    { dataset_id: z.string() },
-    async ({ dataset_id }) => {
+    { name: z.string() },
+    async ({ name }) => {
       try {
-        const columns = schemaCache.getColumns(dataset_id);
+        const columns = schemaCache.getColumns(name);
 
         if (!columns) {
           const payload = makeError(
             'DATASET_NOT_FOUND',
-            `No se encontró el esquema para el dataset "${dataset_id}".`,
-            'Usa listar_fuentes_de_datos para ver los dataset_id disponibles.',
+            `No se encontró el esquema para el dataset "${name}".`,
+            'Usa listar_fuentes_de_datos para ver los nombres disponibles.',
           );
           return { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true };
         }
