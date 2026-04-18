@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.python-version
+*.egg-info/
+
+# uv
+uv.lock.bak
+
+# Datos (no versionar)
+shared_data/raw/*
+shared_data/processed/*
+shared_data/api_metadata/*
+shared_data/dictionaries/*
+!shared_data/**/.gitkeep
+
+# Logs
+logs/**/*.log
+!logs/**/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/

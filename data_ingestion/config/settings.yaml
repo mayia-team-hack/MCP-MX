@@ -1,0 +1,33 @@
+# Configuración del pipeline de ingesta MCP-MX
+
+ckan:
+  base_url: "https://datos.cdmx.gob.mx/api/3/action"
+  endpoints:
+    package_search: "/package_search"
+    package_show: "/package_show"
+  rows_per_request: 100
+  max_rows_per_response: 1000
+
+throttling:
+  delay_seconds: 1.5
+  max_concurrent_downloads: 2
+  request_timeout: 60
+
+retry:
+  max_attempts: 3
+  backoff_seconds: [2, 4, 8]
+
+paths:
+  raw: "shared_data/raw"
+  processed: "shared_data/processed"
+  api_metadata: "shared_data/api_metadata"
+  dictionaries: "shared_data/dictionaries"
+  sync_state: "shared_data/sync_state.json"
+  index: "shared_data/index.json"
+  logs_dir: "logs/ingestion"
+
+logging:
+  level: "INFO"
+  max_file_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
