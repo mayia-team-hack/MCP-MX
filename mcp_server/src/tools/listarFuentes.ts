@@ -2,12 +2,25 @@ import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as loader from '../core/loader';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = { grupo: z.string().optional() };
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'listar_fuentes_de_datos',
     'Lista todos los datasets disponibles en el catálogo. Filtra por grupo temático si se indica.',
-    { grupo: z.string().optional() },
-    async ({ grupo }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { grupo } = args as { grupo?: string };
       try {
         let datasets = loader.getAll();
 

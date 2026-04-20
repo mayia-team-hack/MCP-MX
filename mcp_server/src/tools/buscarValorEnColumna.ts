@@ -4,17 +4,36 @@ import * as loader from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 import * as engine from '../core/duckdbEngine';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    name: z.string(),
+    columna: z.string(),
+    texto: z.string(),
+    limit: z.number().int().positive().optional().default(50),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'buscar_valor_en_columna',
     'Busca filas donde una columna contiene un texto (búsqueda parcial, case-insensitive).',
-    {
-      name: z.string(),
-      columna: z.string(),
-      texto: z.string(),
-      limit: z.number().int().positive().optional().default(50),
-    },
-    async ({ name, columna, texto, limit }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name, columna, texto, limit } = args as {
+        name: string;
+        columna: string;
+        texto: string;
+        limit: number;
+      };
       try {
         const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {

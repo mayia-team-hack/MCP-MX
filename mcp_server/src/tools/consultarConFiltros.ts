@@ -4,6 +4,15 @@ import * as loader from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 import * as engine from '../core/duckdbEngine';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 // ── SQL building helpers ──────────────────────────────────────────────────────
 
 const ALLOWED_OPERATORS = new Set(['=', '>', '<', '>=', '<=', '!=', 'LIKE', 'IN'] as const);
@@ -38,16 +47,26 @@ const FiltroSchema = z.object({
 // ── Tool ──────────────────────────────────────────────────────────────────────
 
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    name: z.string(),
+    filtros: z.array(FiltroSchema),
+    columnas_salida: z.array(z.string()).optional(),
+    limit: z.number().int().positive().optional().default(100),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'consultar_con_filtros',
     'Consulta un dataset aplicando filtros y seleccionando columnas específicas. Más seguro que SQL crudo.',
-    {
-      name: z.string(),
-      filtros: z.array(FiltroSchema),
-      columnas_salida: z.array(z.string()).optional(),
-      limit: z.number().int().positive().optional().default(100),
-    },
-    async ({ name, filtros, columnas_salida, limit }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name, filtros, columnas_salida, limit } = args as {
+        name: string;
+        filtros: Array<{ columna: string; operador: Operador; valor: string | number | string[] }>;
+        columnas_salida?: string[];
+        limit: number;
+      };
       try {
         const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {

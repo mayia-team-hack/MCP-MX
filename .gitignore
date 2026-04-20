@@ -3,11 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.venv*/
+venv/
+env/
+.env/
 .python-version
 *.egg-info/
+.mypy_cache/
+.ruff_cache/
 
 # uv
 uv.lock.bak
+.uv-cache/
 
 # Datos (no versionar)
 shared_data/raw/*
@@ -19,6 +26,7 @@ shared_data/dictionaries/*
 # Logs
 logs/**/*.log
 !logs/**/.gitkeep
+*.log
 
 # IDE
 .vscode/
@@ -26,7 +34,18 @@ logs/**/*.log
 *.swp
 .DS_Store
 
+# Node / MCP server
+mcp_server/node_modules/
+mcp_server/dist/
+mcp_server/*.tsbuildinfo
+mcp_server/npm-debug.log*
+
 # Tests
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Temp files
+.tmp/
+tmp/
+*.tmp

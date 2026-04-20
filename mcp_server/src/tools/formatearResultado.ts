@@ -2,6 +2,15 @@ import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeError } from '../core/loader';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function toMarkdownTable(filas: Record<string, unknown>[], titulo?: string): string {
@@ -69,15 +78,24 @@ function toResumenNarrativo(
 // ── Tool ──────────────────────────────────────────────────────────────────────
 
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    filas: z.array(z.record(z.unknown())),
+    formato: z.enum(['markdown_table', 'csv', 'json_pretty', 'resumen_narrativo']),
+    titulo: z.string().optional(),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'formatear_resultado',
     'Convierte filas de datos a markdown, CSV, JSON indentado o resumen narrativo. Sin llamadas externas.',
-    {
-      filas: z.array(z.record(z.unknown())),
-      formato: z.enum(['markdown_table', 'csv', 'json_pretty', 'resumen_narrativo']),
-      titulo: z.string().optional(),
-    },
-    async ({ filas, formato, titulo }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { filas, formato, titulo } = args as {
+        filas: Array<Record<string, unknown>>;
+        formato: 'markdown_table' | 'csv' | 'json_pretty' | 'resumen_narrativo';
+        titulo?: string;
+      };
       try {
         let contenido: string;
 

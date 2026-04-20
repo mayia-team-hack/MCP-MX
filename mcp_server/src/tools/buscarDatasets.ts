@@ -2,6 +2,15 @@ import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as loader from '../core/loader';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 function stripAccents(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -33,14 +42,19 @@ function scoreDataset(
 }
 
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    texto: z.string(),
+    top_k: z.number().int().positive().optional().default(5),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'buscar_datasets_por_texto',
     'Busca datasets por texto libre en título, tags y grupos. Útil cuando no conoces el name del dataset.',
-    {
-      texto: z.string(),
-      top_k: z.number().int().positive().optional().default(5),
-    },
-    async ({ texto, top_k }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { texto, top_k } = args as { texto: string; top_k: number };
       try {
         const datasets = loader.getAll();
 

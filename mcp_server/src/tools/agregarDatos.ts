@@ -4,6 +4,15 @@ import * as loader from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 import * as engine from '../core/duckdbEngine';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 // ── SQL helpers ───────────────────────────────────────────────────────────────
 
 function escapeStr(v: string): string {
@@ -44,17 +53,28 @@ const MetricaSchema = z.object({
 // ── Tool ──────────────────────────────────────────────────────────────────────
 
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    name: z.string(),
+    agrupar_por: z.array(z.string()),
+    metricas: z.array(MetricaSchema),
+    filtros: z.array(FiltroSchema).optional().default([]),
+    limit: z.number().int().positive().optional().default(100),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'agregar_datos',
     'Agrupa y agrega datos de un dataset (GROUP BY). Soporta COUNT, SUM, AVG, MIN, MAX.',
-    {
-      name: z.string(),
-      agrupar_por: z.array(z.string()),
-      metricas: z.array(MetricaSchema),
-      filtros: z.array(FiltroSchema).optional().default([]),
-      limit: z.number().int().positive().optional().default(100),
-    },
-    async ({ name, agrupar_por, metricas, filtros, limit }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name, agrupar_por, metricas, filtros, limit } = args as {
+        name: string;
+        agrupar_por: string[];
+        metricas: Array<{ columna: string; funcion: 'COUNT' | 'SUM' | 'AVG' | 'MIN' | 'MAX' }>;
+        filtros: Array<{ columna: string; operador: Operador; valor: string | number | string[] }>;
+        limit: number;
+      };
       try {
         const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {

@@ -4,6 +4,15 @@ import * as loader from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 import * as engine from '../core/duckdbEngine';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 const NUMERIC_TYPE_RE =
   /^(TINYINT|SMALLINT|INTEGER|INT|BIGINT|HUGEINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL|UBIGINT|UINTEGER|USMALLINT|UTINYINT|INT8|INT16|INT32|INT64)/i;
 
@@ -12,14 +21,19 @@ function isNumeric(dataType: string): boolean {
 }
 
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = {
+    name: z.string(),
+    columna: z.string(),
+  };
+
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'obtener_estadisticas_columna',
     'Calcula estadísticas de una columna: min/max/avg/stddev para numéricas, top valores para categóricas.',
-    {
-      name: z.string(),
-      columna: z.string(),
-    },
-    async ({ name, columna }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name, columna } = args as { name: string; columna: string };
       try {
         const pathOrErr = loader.getParquetPath(name);
         if (typeof pathOrErr !== 'string') {

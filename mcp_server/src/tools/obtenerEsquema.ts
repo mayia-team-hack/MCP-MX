@@ -3,12 +3,25 @@ import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeError } from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = { name: z.string() };
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'obtener_esquema_dataset',
     'Devuelve los nombres y tipos de columnas de un dataset. Llama a esta tool antes de escribir cualquier query.',
-    { name: z.string() },
-    async ({ name }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name } = args as { name: string };
       try {
         const columns = schemaCache.getColumns(name);
 

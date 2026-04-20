@@ -3,12 +3,25 @@ import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import * as loader from '../core/loader';
 import * as schemaCache from '../core/schemaCache';
 
+type ToolSchema = Record<string, z.ZodTypeAny>;
+type ToolArgs = Record<string, unknown>;
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  schema: ToolSchema,
+  handler: (args: ToolArgs) => Promise<unknown>,
+) => void;
+
 export function register(server: McpServer): void {
-  server.tool(
+  const inputSchema: ToolSchema = { name: z.string() };
+  const registerTool = server.tool.bind(server) as unknown as ToolRegistrar;
+
+  registerTool(
     'obtener_metadatos_dataset',
     'Devuelve metadatos completos de un dataset: origen, organización, fechas, tamaño (filas/columnas).',
-    { name: z.string() },
-    async ({ name }) => {
+    inputSchema,
+    async (args: ToolArgs) => {
+      const { name } = args as { name: string };
       try {
         const entry = loader.getByName(name);
 
