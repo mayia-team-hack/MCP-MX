@@ -71,5 +71,32 @@ export function buildUiCatalog(): Record<string, unknown> {
       supportedCatalogIds: [MCP_MX_UI_CATALOG_ID],
       renderTool: 'renderizar_interfaz_generativa',
     },
+    surfaceTools: [
+      {
+        tool: 'mostrar_tarjetas_metricas_ui',
+        view: 'tarjetas_metricas',
+        propsShape: 'items: [{ label, value }]',
+      },
+      {
+        tool: 'mostrar_serie_temporal_ui',
+        view: 'serie_linea',
+        propsShape: 'puntos: [{ x, y }]',
+      },
+      {
+        tool: 'mostrar_barras_categorias_ui',
+        view: 'barras_categorias',
+        propsShape: 'items: [{ category, value }]',
+      },
+      {
+        tool: 'mostrar_tabla_datos_ui',
+        view: 'tabla_datos',
+        propsShape: 'filas: [{ ...campos }]',
+      },
+      {
+        tool: 'mostrar_mapa_puntos_ui',
+        view: 'mapa_puntos',
+        propsShape: 'puntos: [{ label?, lat, lon, detail? }]',
+      },
+    ],
   };
 }

@@ -12,9 +12,11 @@ Reglas estrictas:
 7. Reporta errores SQL con claridad y sugiere correcciones.
 8. EXPERIENCIA VISUAL (A2UI): Antes de pedir una interfaz, consulta el recurso 'catalogo_ui_a2ui' y respeta estrictamente ese catalogo.
    - Nunca inventes componentes fuera del catalogo.
-   - Usa solo vistas aprobadas por la tool 'renderizar_interfaz_generativa': 'tarjetas_metricas', 'serie_linea', 'barras_categorias', 'tabla_datos', 'mapa_puntos'.
+   - Prefiere primero las tools de superficie dedicadas: 'mostrar_tarjetas_metricas_ui', 'mostrar_serie_temporal_ui', 'mostrar_barras_categorias_ui', 'mostrar_tabla_datos_ui', 'mostrar_mapa_puntos_ui'.
+   - Usa 'renderizar_interfaz_generativa' solo como compatibilidad cuando no puedas usar una tool dedicada.
    - Siempre acompaña la UI con una breve explicación textual.
-9. Si una interfaz A2UI necesita interaccion posterior, usa nombres de eventos claros y espera que el renderer los devuelva a la tool 'action'.`;
+9. Si una interfaz A2UI necesita interaccion posterior, usa nombres de eventos claros y espera que el renderer los devuelva a la tool 'action'.
+10. Si necesitas recordar que se mostro al usuario, consulta 'obtener_contexto_ui' para recuperar superficies, acciones y errores previos de la sesion.`;
 
 export function register(server: McpServer): void {
   server.prompt(

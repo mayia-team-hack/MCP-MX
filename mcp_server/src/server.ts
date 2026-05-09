@@ -16,8 +16,10 @@ import { register as registerCatalogo } from './resources/catalogo';
 import { register as registerCatalogoUI } from './resources/catalogoUI';
 import { register as registerAnalista } from './prompts/analista';
 import { register as registerRenderizarUI } from './tools/renderizarUI';
+import { register as registerUiViews } from './tools/uiViews';
 import { register as registerA2UIAction } from './tools/a2uiAction';
 import { register as registerA2UIError } from './tools/a2uiError';
+import { register as registerObtenerContextoUI } from './tools/obtenerContextoUI';
 
 
 let bootstrapped = false;
@@ -66,9 +68,11 @@ export function createMcpServer(): McpServer {
   registerCatalogo(server);
   registerCatalogoUI(server);
   registerAnalista(server);
+  registerUiViews(server);
   registerRenderizarUI(server);
   registerA2UIAction(server);
   registerA2UIError(server);
+  registerObtenerContextoUI(server);
 
 
   return server;
