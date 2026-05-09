@@ -55,6 +55,27 @@ Configuración para Claude Desktop (`claude_desktop_config.json`):
 }
 ```
 
+### Opción 1.1 — Modo remoto para varios agentes
+
+Si el MCP va a ser consumido por varios agentes a través de una app con AG-UI, conviene ejecutarlo como servidor remoto con `Streamable HTTP` en lugar de `stdio`.
+
+```bash
+node dist/index.js --data-path ../shared_data --transport streamable-http --host 127.0.0.1 --port 3001
+```
+
+Endpoints principales:
+
+- `POST /mcp` — inicialización y llamadas MCP
+- `GET /mcp` — stream/resume de la sesión
+- `DELETE /mcp` — cierre de sesión
+- `GET /health` — healthcheck simple
+
+Notas:
+
+- Cada cliente/agente obtiene su propia sesión MCP.
+- El servidor guarda metadatos de sesión útiles para A2UI, como capacidades declaradas por el cliente durante `initialize`.
+- Se mantiene el modo `stdio` para clientes locales que lanzan su propia instancia.
+
 ### Opción 2 — Clonar el repo
 
 ```bash
@@ -88,6 +109,12 @@ Iniciar el servidor MCP apuntando a shared_data/:
 
 ```bash
 node dist/index.js --data-path ../shared_data
+```
+
+Iniciar el servidor en modo multiagente por HTTP:
+
+```bash
+node dist/index.js --data-path ../shared_data --transport streamable-http --port 3001
 ```
 
 

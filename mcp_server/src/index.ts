@@ -1,21 +1,13 @@
 import * as path from 'path';
+import { randomUUID } from 'crypto';
+import { type IncomingMessage, type ServerResponse } from 'http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import * as loader from './core/loader';
-import * as schemaCache from './core/schemaCache';
-
-import { register as registerListarFuentes } from './tools/listarFuentes';
-import { register as registerObtenerEsquema } from './tools/obtenerEsquema';
-import { register as registerConsultarSQL } from './tools/consultarSQL';
-import { register as registerObtenerMetadatos } from './tools/obtenerMetadatos';
-import { register as registerBuscarDatasets } from './tools/buscarDatasets';
-import { register as registerConsultarConFiltros } from './tools/consultarConFiltros';
-import { register as registerBuscarValorEnColumna } from './tools/buscarValorEnColumna';
-import { register as registerObtenerEstadisticas } from './tools/obtenerEstadisticas';
-import { register as registerAgregarDatos } from './tools/agregarDatos';
-import { register as registerFormatearResultado } from './tools/formatearResultado';
-import { register as registerCatalogo } from './resources/catalogo';
-import { register as registerAnalista } from './prompts/analista';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
+import { createMcpServer, bootstrapData, warmSchemaCache } from './server';
+import { extractA2UIState } from './core/a2ui';
+import * as sessionStore from './core/sessionStore';
 
 // ── Resolve SHARED_DATA_PATH ─────────────────────────────────────────────────
 
@@ -40,50 +32,291 @@ function resolveSharedDataPath(): string {
   return path.resolve(__dirname, '../../shared_data');
 }
 
+type TransportMode = 'stdio' | 'streamable-http';
+
+interface RuntimeOptions {
+  sharedDataPath: string;
+  transportMode: TransportMode;
+  host: string;
+  port: number;
+}
+
+interface StatefulConnection {
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+}
+
+type HttpRequestLike = IncomingMessage & { body?: unknown };
+type HttpResponseLike = ServerResponse;
+
+function sendJson(res: HttpResponseLike, statusCode: number, payload: unknown): void {
+  const body = JSON.stringify(payload);
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(body);
+}
+
+function sendText(res: HttpResponseLike, statusCode: number, payload: string): void {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.end(payload);
+}
+
+function resolveArgValue(name: string): string | undefined {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === name && argv[i + 1]) {
+      return argv[i + 1];
+    }
+
+    if (argv[i].startsWith(`${name}=`)) {
+      return argv[i].slice(name.length + 1);
+    }
+  }
+
+  return undefined;
+}
+
+function resolveTransportMode(): TransportMode {
+  const cliValue = resolveArgValue('--transport');
+  const envValue = process.env.MCP_TRANSPORT;
+  const raw = (cliValue ?? envValue ?? 'stdio').toLowerCase();
+
+  if (raw === 'streamable-http' || raw === 'http') {
+    return 'streamable-http';
+  }
+
+  return 'stdio';
+}
+
+function resolveRuntimeOptions(): RuntimeOptions {
+  const host = resolveArgValue('--host') ?? process.env.MCP_HOST ?? '127.0.0.1';
+  const rawPort = resolveArgValue('--port') ?? process.env.MCP_PORT ?? '3001';
+  const port = Number.parseInt(rawPort, 10);
+
+  return {
+    sharedDataPath: resolveSharedDataPath(),
+    transportMode: resolveTransportMode(),
+    host,
+    port: Number.isFinite(port) ? port : 3001,
+  };
+}
+
+function isInitializeRequest(body: unknown): body is {
+  method: 'initialize';
+  params?: {
+    clientInfo?: { name?: string; version?: string };
+  };
+} {
+  return !!body && typeof body === 'object' && (body as { method?: unknown }).method === 'initialize';
+}
+
+async function startStdioMode(): Promise<void> {
+  const server = createMcpServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  console.error('[mcp-mx] MCP server started (STDIO transport)');
+}
+
+async function startStreamableHttpMode(options: RuntimeOptions): Promise<void> {
+  const app = createMcpExpressApp({ host: options.host });
+  const connections = new Map<string, StatefulConnection>();
+  const closingSessions = new Set<string>();
+
+  const closeConnection = async (sessionId: string): Promise<void> => {
+    if (closingSessions.has(sessionId)) {
+      return;
+    }
+
+    const current = connections.get(sessionId);
+    if (!current) {
+      sessionStore.close(sessionId);
+      return;
+    }
+
+    closingSessions.add(sessionId);
+    connections.delete(sessionId);
+    sessionStore.close(sessionId);
+
+    try {
+      await current.transport.close();
+      await current.server.close();
+    } finally {
+      closingSessions.delete(sessionId);
+    }
+  };
+
+  app.post('/mcp', async (req: HttpRequestLike, res: HttpResponseLike) => {
+    const body = req.body;
+    const headerSessionId = typeof req.headers['mcp-session-id'] === 'string'
+      ? req.headers['mcp-session-id']
+      : undefined;
+
+    try {
+      if (isInitializeRequest(body)) {
+        const server = createMcpServer();
+        const pendingKey = `pending-${randomUUID()}`;
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (sessionId) => {
+            sessionStore.open(sessionId);
+            sessionStore.setClientInfo(sessionId, body.params?.clientInfo);
+            sessionStore.setA2UIState(sessionId, extractA2UIState(body));
+          },
+          onsessionclosed: async (sessionId) => {
+            await closeConnection(sessionId);
+          },
+        });
+
+        connections.set(pendingKey, { server, transport });
+        await server.connect(transport);
+        await transport.handleRequest(req, res, body);
+
+        if (transport.sessionId) {
+          connections.delete(pendingKey);
+          connections.set(transport.sessionId, { server, transport });
+        } else {
+          connections.delete(pendingKey);
+        }
+
+        return;
+      }
+
+      if (!headerSessionId) {
+        sendJson(res, 400, {
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Missing MCP session ID',
+          },
+          id: null,
+        });
+        return;
+      }
+
+      const connection = connections.get(headerSessionId);
+      if (!connection) {
+        sendJson(res, 404, {
+          jsonrpc: '2.0',
+          error: {
+            code: -32001,
+            message: `Unknown MCP session: ${headerSessionId}`,
+          },
+          id: null,
+        });
+        return;
+      }
+
+      sessionStore.touch(headerSessionId);
+      sessionStore.setA2UIState(headerSessionId, extractA2UIState(body));
+      await connection.transport.handleRequest(req, res, body);
+    } catch (error) {
+      console.error('[mcp-mx] Error handling POST /mcp:', error);
+      if (!res.headersSent) {
+        sendJson(res, 500, {
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
+    }
+  });
+
+  app.get('/mcp', async (req: HttpRequestLike, res: HttpResponseLike) => {
+    const sessionId = typeof req.headers['mcp-session-id'] === 'string'
+      ? req.headers['mcp-session-id']
+      : undefined;
+
+    if (!sessionId) {
+      sendText(res, 400, 'Missing MCP session ID');
+      return;
+    }
+
+    const connection = connections.get(sessionId);
+    if (!connection) {
+      sendText(res, 404, 'Session not found');
+      return;
+    }
+
+    sessionStore.touch(sessionId);
+    await connection.transport.handleRequest(req, res);
+  });
+
+  app.delete('/mcp', async (req: HttpRequestLike, res: HttpResponseLike) => {
+    const sessionId = typeof req.headers['mcp-session-id'] === 'string'
+      ? req.headers['mcp-session-id']
+      : undefined;
+
+    if (!sessionId) {
+      sendText(res, 400, 'Missing MCP session ID');
+      return;
+    }
+
+    const connection = connections.get(sessionId);
+    if (!connection) {
+      sendText(res, 404, 'Session not found');
+      return;
+    }
+
+    await connection.transport.handleRequest(req, res);
+  });
+
+  app.get('/health', (_req: HttpRequestLike, res: HttpResponseLike) => {
+    sendJson(res, 200, {
+      name: 'mcp-mx',
+      transport: 'streamable-http',
+      sessions: connections.size,
+      status: 'ok',
+    });
+  });
+
+  const shutdown = async (): Promise<void> => {
+    for (const sessionId of Array.from(connections.keys())) {
+      await closeConnection(sessionId);
+    }
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
+
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
+
+  app.listen(options.port, options.host, () => {
+    console.error(
+      `[mcp-mx] MCP server started (Streamable HTTP transport) on http://${options.host}:${options.port}/mcp`,
+    );
+  });
+}
+
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const sharedDataPath = resolveSharedDataPath();
-  console.error(`[mcp-mx] SHARED_DATA_PATH = ${sharedDataPath}`);
+  const options = resolveRuntimeOptions();
+  console.error(`[mcp-mx] SHARED_DATA_PATH = ${options.sharedDataPath}`);
 
   try {
-    loader.initialize(sharedDataPath);
+    bootstrapData(options.sharedDataPath);
   } catch (err) {
     console.error('[mcp-mx] Fatal error initialising loader:', err);
     process.exit(1);
   }
 
-  const datasets = loader.getAll();
-  console.error(`[mcp-mx] Loaded ${datasets.length} dataset(s) from index.json`);
+  await warmSchemaCache();
 
-  await schemaCache.initialize(datasets);
+  if (options.transportMode === 'streamable-http') {
+    await startStreamableHttpMode(options);
+    return;
+  }
 
-  // ── MCP server ─────────────────────────────────────────────────────────────
-
-  const server = new McpServer({ name: 'mcp-mx', version: '0.1.0' });
-
-  // Tools
-  registerListarFuentes(server);
-  registerObtenerEsquema(server);
-  registerConsultarSQL(server);
-  registerObtenerMetadatos(server);
-  registerBuscarDatasets(server);
-  registerConsultarConFiltros(server);
-  registerBuscarValorEnColumna(server);
-  registerObtenerEstadisticas(server);
-  registerAgregarDatos(server);
-  registerFormatearResultado(server);
-
-  // Resource (catalog snapshot — generated after schemaCache is populated)
-  registerCatalogo(server);
-
-  // Prompt
-  registerAnalista(server);
-
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-
-  console.error('[mcp-mx] MCP server started (STDIO transport)');
+  await startStdioMode();
 }
 
 main().catch((err) => {
