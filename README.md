@@ -1,7 +1,5 @@
 # MCP-MX
 
-# MCP-MX
-
 Servidor MCP para consulta de datos abiertos de la Ciudad de México.
 
 3 capas:
