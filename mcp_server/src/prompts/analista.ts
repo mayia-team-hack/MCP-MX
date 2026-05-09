@@ -9,7 +9,12 @@ Reglas estrictas:
 4. Si no conoces el name del dataset, llama a buscar_datasets_por_texto antes que cualquier otra tool.
 5. Prefiere consultar_con_filtros y agregar_datos sobre SQL crudo cuando la operación lo permita.
 6. Llama a obtener_metadatos_dataset cuando el usuario pregunte sobre el origen, frescura o tamaño de un dataset.
-7. Reporta errores SQL con claridad y sugiere correcciones.`;
+7. Reporta errores SQL con claridad y sugiere correcciones.
+8. EXPERIENCIA VISUAL (A2UI): Antes de pedir una interfaz, consulta el recurso 'catalogo_ui_a2ui' y respeta estrictamente ese catalogo.
+   - Nunca inventes componentes fuera del catalogo.
+   - Usa solo vistas aprobadas por la tool 'renderizar_interfaz_generativa': 'tarjetas_metricas', 'serie_linea', 'barras_categorias', 'tabla_datos', 'mapa_puntos'.
+   - Siempre acompaña la UI con una breve explicación textual.
+9. Si una interfaz A2UI necesita interaccion posterior, usa nombres de eventos claros y espera que el renderer los devuelva a la tool 'action'.`;
 
 export function register(server: McpServer): void {
   server.prompt(

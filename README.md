@@ -75,6 +75,7 @@ Notas:
 - Cada cliente/agente obtiene su propia sesión MCP.
 - El servidor guarda metadatos de sesión útiles para A2UI, como capacidades declaradas por el cliente durante `initialize`.
 - Se mantiene el modo `stdio` para clientes locales que lanzan su propia instancia.
+- Si `shared_data/index.json` no contiene datasets, el servidor usa `sample_data/` automáticamente.
 
 ### Opción 2 — Clonar el repo
 

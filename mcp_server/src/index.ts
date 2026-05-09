@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { type IncomingMessage, type ServerResponse } from 'http';
@@ -28,8 +29,28 @@ function resolveSharedDataPath(): string {
     return process.env.SHARED_DATA_PATH;
   }
 
-  // 3. Default: repo root shared_data/
-  return path.resolve(__dirname, '../../shared_data');
+  // 3. Default: repo root shared_data/, but fall back to sample_data/ if empty
+  const sharedDataPath = path.resolve(__dirname, '../../shared_data');
+  const sampleDataPath = path.resolve(__dirname, '../../sample_data');
+  const sharedDataIndexPath = path.join(sharedDataPath, 'index.json');
+
+  try {
+    const raw = fs.readFileSync(sharedDataIndexPath, 'utf-8');
+    const parsed = JSON.parse(raw) as { datasets?: unknown[]; total_datasets?: number };
+    const datasetCount = Array.isArray(parsed.datasets)
+      ? parsed.datasets.length
+      : typeof parsed.total_datasets === 'number'
+        ? parsed.total_datasets
+        : 0;
+
+    if (datasetCount > 0) {
+      return sharedDataPath;
+    }
+  } catch {
+    // Ignore and fall back to sample data if present.
+  }
+
+  return sampleDataPath;
 }
 
 type TransportMode = 'stdio' | 'streamable-http';

@@ -13,7 +13,12 @@ import { register as registerObtenerEstadisticas } from './tools/obtenerEstadist
 import { register as registerAgregarDatos } from './tools/agregarDatos';
 import { register as registerFormatearResultado } from './tools/formatearResultado';
 import { register as registerCatalogo } from './resources/catalogo';
+import { register as registerCatalogoUI } from './resources/catalogoUI';
 import { register as registerAnalista } from './prompts/analista';
+import { register as registerRenderizarUI } from './tools/renderizarUI';
+import { register as registerA2UIAction } from './tools/a2uiAction';
+import { register as registerA2UIError } from './tools/a2uiError';
+
 
 let bootstrapped = false;
 
@@ -59,7 +64,12 @@ export function createMcpServer(): McpServer {
   registerAgregarDatos(server);
   registerFormatearResultado(server);
   registerCatalogo(server);
+  registerCatalogoUI(server);
   registerAnalista(server);
+  registerRenderizarUI(server);
+  registerA2UIAction(server);
+  registerA2UIError(server);
+
 
   return server;
 }

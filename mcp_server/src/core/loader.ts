@@ -74,6 +74,22 @@ export type DatasetEntry = Dataset & { resolvedPath: string };
 
 let registry: Map<string, DatasetEntry> = new Map();
 
+function getPreferredResource(resources: { path: string; format: string }[]): {
+  path: string;
+  format: string;
+} | undefined {
+  const preferredFormats = ['parquet', 'csv', 'tsv', 'json'];
+
+  for (const format of preferredFormats) {
+    const match = resources.find((resource) => resource.format.toLowerCase() === format);
+    if (match) {
+      return match;
+    }
+  }
+
+  return resources[0];
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function initialize(sharedDataPath: string): void {
@@ -114,24 +130,22 @@ export function initialize(sharedDataPath: string): void {
 
   for (const dataset of result.data.datasets) {
     type Resource = { path: string; format: string };
-    const parquetResource: Resource | undefined =
-      dataset.resources.find((r: Resource) => r.format.toLowerCase() === 'parquet') ??
-      dataset.resources[0];
+    const datasetResource: Resource | undefined = getPreferredResource(dataset.resources);
 
-    if (!parquetResource) {
+    if (!datasetResource) {
       throw makeError(
         'FILE_NOT_FOUND',
-        `No parquet resource defined for dataset "${dataset.name}".`,
-        `Add an entry with format "parquet" to the resources array in index.json for "${dataset.name}"`,
+        `No data resource defined for dataset "${dataset.name}".`,
+        `Add a file resource such as csv or parquet to the resources array in index.json for "${dataset.name}"`,
       );
     }
 
-    const resolvedPath = path.resolve(sharedDataPath, parquetResource.path);
+    const resolvedPath = path.resolve(sharedDataPath, datasetResource.path);
     if (!fs.existsSync(resolvedPath)) {
       throw makeError(
         'FILE_NOT_FOUND',
-        `Parquet file not found for dataset "${dataset.name}": ${resolvedPath}`,
-        `Run the ingestion pipeline or verify resources[0].path in index.json for "${dataset.name}"`,
+        `Dataset file not found for dataset "${dataset.name}": ${resolvedPath}`,
+        `Verify the resource path in index.json for "${dataset.name}"`,
       );
     }
 
@@ -144,7 +158,7 @@ export function getAll(): DatasetEntry[] {
 }
 
 /** Returns the resolved absolute parquet path for a dataset name (slug). */
-export function getParquetPath(name: string): string | McpError {
+export function getDatasetPath(name: string): string | McpError {
   const entry = registry.get(name);
   if (!entry) {
     return makeError(
@@ -157,7 +171,8 @@ export function getParquetPath(name: string): string | McpError {
 }
 
 /** Backward-compat alias so existing tool files continue to compile. */
-export const getPath = getParquetPath;
+export const getParquetPath = getDatasetPath;
+export const getPath = getDatasetPath;
 
 /** Returns the full entry for a dataset name, or undefined if not registered. */
 export function getByName(name: string): DatasetEntry | undefined {

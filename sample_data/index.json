@@ -1,0 +1,135 @@
+{
+  "generated_at": "2026-05-09T00:00:00Z",
+  "datasets": [
+    {
+      "name": "carpetas-fgj-2024",
+      "title": "Carpetas FGJ 2024",
+      "description": "Carpetas de investigacion de la FGJ CDMX para pruebas del MCP y renderizado A2UI.",
+      "metadata_modified": "2026-05-09",
+      "groups": [
+        {
+          "name": "seguridad",
+          "display_name": "Seguridad"
+        }
+      ],
+      "tags": [
+        {
+          "name": "fiscalia"
+        },
+        {
+          "name": "delitos"
+        },
+        {
+          "name": "cdmx"
+        }
+      ],
+      "organization": {
+        "name": "sample-data",
+        "title": "Sample Data"
+      },
+      "resources": [
+        {
+          "path": "files/carpetasFGJ_2024.csv",
+          "format": "csv"
+        }
+      ],
+      "num_rows": 139696
+    },
+    {
+      "name": "diccionario-afluencia-desglosada-rtp",
+      "title": "Diccionario de Afluencia Desglosada RTP",
+      "description": "Diccionario de columnas para afluencia desglosada RTP, usado como dataset auxiliar de muestra.",
+      "metadata_modified": "2026-05-09",
+      "groups": [
+        {
+          "name": "movilidad",
+          "display_name": "Movilidad"
+        }
+      ],
+      "tags": [
+        {
+          "name": "rtp"
+        },
+        {
+          "name": "diccionario"
+        }
+      ],
+      "organization": {
+        "name": "sample-data",
+        "title": "Sample Data"
+      },
+      "resources": [
+        {
+          "path": "files/diccionario-afluencia-desglosada-rtp.csv",
+          "format": "csv"
+        }
+      ],
+      "num_rows": 14
+    },
+    {
+      "name": "redmet-2023-05",
+      "title": "Redmet 2023 05",
+      "description": "Serie temporal meteorologica de muestra para pruebas de graficas.",
+      "metadata_modified": "2026-05-09",
+      "groups": [
+        {
+          "name": "medio-ambiente",
+          "display_name": "Medio Ambiente"
+        }
+      ],
+      "tags": [
+        {
+          "name": "meteorologia"
+        },
+        {
+          "name": "series-de-tiempo"
+        }
+      ],
+      "organization": {
+        "name": "sample-data",
+        "title": "Sample Data"
+      },
+      "resources": [
+        {
+          "path": "files/redmet_2023_05.csv",
+          "format": "csv"
+        }
+      ],
+      "num_rows": 3073
+    },
+    {
+      "name": "consumo-agua-historico-2019",
+      "title": "Consumo de Agua Historico 2019",
+      "description": "Consumo historico de agua por colonia y alcaldia para pruebas del MCP.",
+      "metadata_modified": "2026-05-09",
+      "groups": [
+        {
+          "name": "servicios",
+          "display_name": "Servicios"
+        }
+      ],
+      "tags": [
+        {
+          "name": "agua"
+        },
+        {
+          "name": "colonias"
+        },
+        {
+          "name": "series-de-tiempo"
+        }
+      ],
+      "organization": {
+        "name": "sample-data",
+        "title": "Sample Data"
+      },
+      "resources": [
+        {
+          "path": "files/consumo_agua_historico_2019.csv",
+          "format": "csv"
+        }
+      ],
+      "num_rows": 71102
+    }
+  ]
+}
