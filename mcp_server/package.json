@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts --transport streamable-http",
     "test": "node --test -r ts-node/register tests/a2ui.test.ts tests/sessionStore.test.ts tests/server.test.ts tests/sampleData.test.ts tests/uiCatalog.test.ts tests/uiContextStore.test.ts"
   },
   "dependencies": {
